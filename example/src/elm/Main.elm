@@ -65,8 +65,18 @@ renderSchedule schedule_ =
 
                         Away ->
                             "@" ++ abbrToStr opp.opponent
+
+                byeClass =
+                    if opp.opponent == BYE then
+                        "bye"
+                    else
+                        ""
             in
-                div [ Attrs.class "abbr opp" ] [ text txt ]
+                div
+                    [ Attrs.class "abbr opp"
+                    , Attrs.class byeClass
+                    ]
+                    [ text txt ]
 
         go : ( String, Team ) -> Html msg
         go ( str, team ) =
