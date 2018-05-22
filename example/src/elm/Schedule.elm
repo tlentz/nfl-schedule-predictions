@@ -43,6 +43,41 @@ nfl2018Schedule =
             ]
 
 
+updateWins : Dict.Dict String Team -> Dict.Dict String Team
+updateWins schedule =
+    let
+        lst =
+            Dict.toList schedule
+
+        newSchedule =
+            List.map
+                (\( str, team ) ->
+                    let
+                        wins =
+                            List.length <| List.filter (\x -> x.result == Win) team.schedule
+
+                        losses =
+                            List.length <| List.filter (\x -> x.result == Loss) team.schedule
+
+                        ties =
+                            List.length <| List.filter (\x -> x.result == Tie) team.schedule
+
+                        record =
+                            team.record
+
+                        newRecord =
+                            { record | win = wins, loss = losses, tie = ties }
+
+                        newTeam =
+                            { team | record = newRecord }
+                    in
+                        ( str, newTeam )
+                )
+                lst
+    in
+        Dict.fromList newSchedule
+
+
 ari : Team
 ari =
     { abbr = ARI

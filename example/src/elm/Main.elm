@@ -6,6 +6,8 @@ import Types exposing (Msg(..), Model, initModel)
 import Dict
 import NFL exposing (..)
 import Html.Attributes as Attrs
+import List.Extra as LE
+import Schedule
 
 
 main : Program Never Model Msg
@@ -29,6 +31,94 @@ update msg model =
         DoNothing ->
             ( model, Cmd.none )
 
+        ResetSchedule ->
+            init
+
+        ToggleResult ( a, b ) ->
+            let
+                teamA_ =
+                    Dict.get (abbrToStr a) model.schedule
+
+                teamB_ =
+                    Dict.get (abbrToStr b) model.schedule
+            in
+                case ( teamA_, teamB_ ) of
+                    ( Just teamA, Just teamB ) ->
+                        let
+                            teamAvsTeamB_ =
+                                List.head <|
+                                    List.filter (\x -> x.opponent == teamB.abbr) teamA.schedule
+
+                            teamBvsTeamA_ =
+                                List.head <|
+                                    List.filter (\x -> x.opponent == teamA.abbr) teamB.schedule
+                        in
+                            case ( teamAvsTeamB_, teamBvsTeamA_ ) of
+                                ( Just teamAvsTeamB, Just teamBvsTeamA ) ->
+                                    let
+                                        teamAResult =
+                                            getNextResult teamAvsTeamB.result
+
+                                        teamBResult =
+                                            toggleResult teamAResult
+
+                                        newTeamAvsTeamB =
+                                            { teamAvsTeamB | result = teamAResult }
+
+                                        newTeamBvsTeamA =
+                                            { teamBvsTeamA | result = teamBResult }
+
+                                        newTeamASchedule =
+                                            LE.replaceIf (\x -> x.opponent == newTeamAvsTeamB.opponent) newTeamAvsTeamB teamA.schedule
+
+                                        newTeamBSchedule =
+                                            LE.replaceIf (\x -> x.opponent == newTeamBvsTeamA.opponent) newTeamBvsTeamA teamB.schedule
+
+                                        newTeamA =
+                                            { teamA | schedule = newTeamASchedule }
+
+                                        newTeamB =
+                                            { teamB | schedule = newTeamBSchedule }
+
+                                        newSchedule =
+                                            Schedule.updateWins <|
+                                                Dict.insert (abbrToStr newTeamB.abbr) newTeamB <|
+                                                    Dict.insert (abbrToStr newTeamA.abbr) newTeamA model.schedule
+                                    in
+                                        ( { model | schedule = newSchedule }, Cmd.none )
+
+                                ( _, _ ) ->
+                                    ( model, Cmd.none )
+
+                    ( _, _ ) ->
+                        ( model, Cmd.none )
+
+
+getNextResult : NFL.Result -> NFL.Result
+getNextResult result =
+    case result of
+        Tie ->
+            Win
+
+        Win ->
+            Loss
+
+        Loss ->
+            Tie
+
+
+toggleResult : NFL.Result -> NFL.Result
+toggleResult result =
+    case result of
+        Win ->
+            Loss
+
+        Loss ->
+            Win
+
+        Tie ->
+            Tie
+
 
 
 -- SUBSCRIPTIONS
@@ -45,44 +135,73 @@ subscriptions model =
 
 view : Model -> Html Msg
 view model =
-    div []
+    div [ Attrs.class "main--container" ]
         [ renderSchedule model.schedule
+        , div [ Attrs.class "reset-schedule-btn--wrapper" ]
+            [ div
+                [ Attrs.class "reset-schedule-btn"
+                , Html.Events.onClick ResetSchedule
+                ]
+                [ text "Reset" ]
+            ]
         ]
 
 
-renderSchedule : Dict.Dict String Team -> Html msg
+renderSchedule : Dict.Dict String Team -> Html Msg
 renderSchedule schedule_ =
     let
         lst =
             Dict.toList schedule_
 
-        io opp =
+        io team game =
             let
                 txt =
-                    case opp.location of
+                    case game.location of
                         Home ->
-                            abbrToStr opp.opponent
+                            abbrToStr game.opponent
 
                         Away ->
-                            "@" ++ abbrToStr opp.opponent
+                            "@" ++ abbrToStr game.opponent
 
                 byeClass =
-                    if opp.opponent == BYE then
+                    if game.opponent == BYE then
                         "bye"
                     else
                         ""
+
+                resultClass =
+                    case game.result of
+                        Win ->
+                            "win"
+
+                        Loss ->
+                            "loss"
+
+                        Tie ->
+                            "tie"
             in
                 div
                     [ Attrs.class "abbr opp"
                     , Attrs.class byeClass
+                    , Attrs.class resultClass
+                    , Html.Events.onClick <| ToggleResult ( team, game.opponent )
                     ]
                     [ text txt ]
 
-        go : ( String, Team ) -> Html msg
+        go : ( String, Team ) -> Html Msg
         go ( str, team ) =
             div [ Attrs.class "schedule--row" ] <|
-                [ div [ Attrs.class "abbr team" ] [ text <| abbrToStr team.abbr ] ]
-                    ++ (List.map io team.schedule)
+                [ div [ Attrs.class "abbr team" ]
+                    [ text <|
+                        String.concat <|
+                            [ abbrToStr team.abbr
+                            , " ("
+                            , recordToString team.record
+                            , ")"
+                            ]
+                    ]
+                ]
+                    ++ (List.map (io team.abbr) team.schedule)
 
         rows =
             List.map go lst

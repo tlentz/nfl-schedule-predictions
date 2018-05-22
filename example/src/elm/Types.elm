@@ -1,7 +1,7 @@
 module Types exposing (..)
 
 import Dict
-import NFL exposing (Team)
+import NFL exposing (Team, Abbr)
 import Schedule exposing (nfl2018Schedule)
 
 
@@ -11,7 +11,9 @@ type alias Model =
 
 
 type Msg
-    = DoNothing
+    = ToggleResult ( Abbr, Abbr )
+    | ResetSchedule
+    | DoNothing
 
 
 initModel : Model

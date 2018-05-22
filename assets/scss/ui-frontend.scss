@@ -28,12 +28,54 @@ body {
     background: darkslateblue;
     color: white;
   }
+  .win {
+    &:not(.bye) {
+      background: green;
+      color: white;
+    }
+  }
+  .loss {
+    &:not(.bye) {
+      background: red;
+      color: white;
+    }
+  }
 }
 
 .schedule--row {
   display: grid;
   grid-template-columns: repeat(18, 1fr);
   >div {
+    cursor: pointer;
     text-align: center;
+    user-select: none;
+    &:hover {
+      &:not(.bye) {
+      }
+    }
   }
+}
+
+.reset-schedule-btn--wrapper {
+  width: 100%;
+  margin-top: 20px;
+  justify-content: center;
+  .reset-schedule-btn {
+    width: 100px;
+    color:#444;
+    border:1px solid #CCC;
+    background:#DDD;
+    box-shadow: 0 0 5px -1px rgba(0,0,0,0.2);
+    cursor:pointer;
+    vertical-align:middle;
+    padding: 5px;
+    text-align: center;
+    margin: auto;
+    user-select: none;
+  }
+}
+
+.main--container {
+  padding-left: 15px;
+  padding-right: 15px;
 }
