@@ -34,70 +34,71 @@ update msg model =
         ResetSchedule ->
             init
 
-        ToggleResult ( a, b ) ->
+        ToggleResult ( abbr, game ) ->
             let
-                teamA_ =
-                    Dict.get (abbrToStr a) model.schedule
-
-                teamB_ =
-                    Dict.get (abbrToStr b) model.schedule
+                team =
+                    Dict.get (abbrToStr abbr) model.schedule
             in
-                updateSchedule model teamA_ teamB_
+                updateSchedule model team game
 
 
+updateSchedule : Model -> Maybe Team -> Game -> ( Model, Cmd Msg )
+updateSchedule model teamA_ game =
+    let
+        teamB_ =
+            Dict.get (abbrToStr game.opponent) model.schedule
+    in
+        case ( teamA_, teamB_ ) of
+            ( Just teamA, Just teamB ) ->
+                let
+                    teamAvsTeamB_ =
+                        List.head <|
+                            List.filter (\x -> x.opponent == teamB.abbr && x.location == game.location) teamA.schedule
 
-updateSchedule : Model -> Maybe Team -> Maybe Team -> (Model, Cmd Msg)
-updateSchedule model teamA_ teamB_ =
-    case ( teamA_, teamB_ ) of
-        ( Just teamA, Just teamB ) ->
-            let
-                teamAvsTeamB_ =
-                    List.head <|
-                        List.filter (\x -> x.opponent == teamB.abbr) teamA.schedule
+                    teamBvsTeamA_ =
+                        List.head <|
+                            List.filter (\x -> x.opponent == teamA.abbr && x.location /= game.location) teamB.schedule
+                in
+                    case ( teamAvsTeamB_, teamBvsTeamA_ ) of
+                        ( Just teamAvsTeamB, Just teamBvsTeamA ) ->
+                            let
+                                teamAResult =
+                                    getNextResult teamAvsTeamB.result
 
-                teamBvsTeamA_ =
-                    List.head <|
-                        List.filter (\x -> x.opponent == teamA.abbr) teamB.schedule
-            in
-                case ( teamAvsTeamB_, teamBvsTeamA_ ) of
-                    ( Just teamAvsTeamB, Just teamBvsTeamA ) ->
-                        let
-                            teamAResult =
-                                getNextResult teamAvsTeamB.result
+                                teamBResult =
+                                    toggleResult teamAResult
 
-                            teamBResult =
-                                toggleResult teamAResult
+                                newTeamAvsTeamB =
+                                    { teamAvsTeamB | result = teamAResult }
 
-                            newTeamAvsTeamB =
-                                { teamAvsTeamB | result = teamAResult }
+                                newTeamBvsTeamA =
+                                    { teamBvsTeamA | result = teamBResult }
 
-                            newTeamBvsTeamA =
-                                { teamBvsTeamA | result = teamBResult }
+                                newTeamASchedule =
+                                    LE.replaceIf (\x -> x.opponent == newTeamAvsTeamB.opponent && x.location == game.location) newTeamAvsTeamB teamA.schedule
 
-                            newTeamASchedule =
-                                LE.replaceIf (\x -> x.opponent == newTeamAvsTeamB.opponent && x.location == newTeamAvsTeamB.location) newTeamAvsTeamB teamA.schedule
+                                newTeamBSchedule =
+                                    LE.replaceIf (\x -> x.opponent == newTeamBvsTeamA.opponent && x.location /= game.location) newTeamBvsTeamA teamB.schedule
 
-                            newTeamBSchedule =
-                                LE.replaceIf (\x -> x.opponent == newTeamBvsTeamA.opponent && x.location == newTeamBvsTeamA.location) newTeamBvsTeamA teamB.schedule
+                                newTeamA =
+                                    { teamA | schedule = newTeamASchedule }
 
-                            newTeamA =
-                                { teamA | schedule = newTeamASchedule }
+                                newTeamB =
+                                    { teamB | schedule = newTeamBSchedule }
 
-                            newTeamB =
-                                { teamB | schedule = newTeamBSchedule }
+                                newSchedule =
+                                    Schedule.updateWins <|
+                                        Dict.insert (abbrToStr newTeamB.abbr) newTeamB <|
+                                            Dict.insert (abbrToStr newTeamA.abbr) newTeamA model.schedule
+                            in
+                                ( { model | schedule = newSchedule }, Cmd.none )
 
-                            newSchedule =
-                                Schedule.updateWins <|
-                                    Dict.insert (abbrToStr newTeamB.abbr) newTeamB <|
-                                        Dict.insert (abbrToStr newTeamA.abbr) newTeamA model.schedule
-                        in
-                            ( { model | schedule = newSchedule }, Cmd.none )
+                        ( _, _ ) ->
+                            ( model, Cmd.none )
 
-                    ( _, _ ) ->
-                        ( model, Cmd.none )
+            ( _, _ ) ->
+                ( model, Cmd.none )
 
-        ( _, _ ) ->
-            ( model, Cmd.none )
 
 getNextResult : NFL.Result -> NFL.Result
 getNextResult result =
@@ -111,9 +112,11 @@ getNextResult result =
         Loss ->
             Tie
 
+
 noDuplicatesSchedule : List Game -> List Game
 noDuplicatesSchedule schedule =
-    LE.uniqueBy (\x -> NFL.abbrToStr x.opponent ) schedule
+    LE.uniqueBy (\x -> NFL.abbrToStr x.opponent) schedule
+
 
 toggleResult : NFL.Result -> NFL.Result
 toggleResult result =
@@ -192,7 +195,7 @@ renderSchedule schedule_ =
                     [ Attrs.class "abbr opp"
                     , Attrs.class byeClass
                     , Attrs.class resultClass
-                    , Html.Events.onClick <| ToggleResult ( team, game.opponent )
+                    , Html.Events.onClick <| ToggleResult ( team, game )
                     ]
                     [ text txt ]
 
