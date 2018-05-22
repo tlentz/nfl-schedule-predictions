@@ -45,6 +45,10 @@ body {
 .schedule--row {
   display: grid;
   grid-template-columns: repeat(18, 1fr);
+  &:hover {
+    border-top: solid 1px lightpink;
+    border-bottom: solid 1px lightpink;
+  }
   >div {
     cursor: pointer;
     text-align: center;

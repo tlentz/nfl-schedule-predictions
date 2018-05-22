@@ -60,7 +60,7 @@ updateWins schedule =
                             List.length <| List.filter (\x -> x.result == Loss) team.schedule
 
                         ties =
-                            List.length <| List.filter (\x -> x.result == Tie) team.schedule
+                            List.length <| List.filter (\x -> x.result == Tie && x.opponent /= BYE) team.schedule
 
                         record =
                             team.record
