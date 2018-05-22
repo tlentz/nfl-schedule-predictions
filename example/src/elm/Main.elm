@@ -42,57 +42,62 @@ update msg model =
                 teamB_ =
                     Dict.get (abbrToStr b) model.schedule
             in
-                case ( teamA_, teamB_ ) of
-                    ( Just teamA, Just teamB ) ->
+                updateSchedule model teamA_ teamB_
+
+
+
+updateSchedule : Model -> Maybe Team -> Maybe Team -> (Model, Cmd Msg)
+updateSchedule model teamA_ teamB_ =
+    case ( teamA_, teamB_ ) of
+        ( Just teamA, Just teamB ) ->
+            let
+                teamAvsTeamB_ =
+                    List.head <|
+                        List.filter (\x -> x.opponent == teamB.abbr) teamA.schedule
+
+                teamBvsTeamA_ =
+                    List.head <|
+                        List.filter (\x -> x.opponent == teamA.abbr) teamB.schedule
+            in
+                case ( teamAvsTeamB_, teamBvsTeamA_ ) of
+                    ( Just teamAvsTeamB, Just teamBvsTeamA ) ->
                         let
-                            teamAvsTeamB_ =
-                                List.head <|
-                                    List.filter (\x -> x.opponent == teamB.abbr) teamA.schedule
+                            teamAResult =
+                                getNextResult teamAvsTeamB.result
 
-                            teamBvsTeamA_ =
-                                List.head <|
-                                    List.filter (\x -> x.opponent == teamA.abbr) teamB.schedule
+                            teamBResult =
+                                toggleResult teamAResult
+
+                            newTeamAvsTeamB =
+                                { teamAvsTeamB | result = teamAResult }
+
+                            newTeamBvsTeamA =
+                                { teamBvsTeamA | result = teamBResult }
+
+                            newTeamASchedule =
+                                LE.replaceIf (\x -> x.opponent == newTeamAvsTeamB.opponent && x.location == newTeamAvsTeamB.location) newTeamAvsTeamB teamA.schedule
+
+                            newTeamBSchedule =
+                                LE.replaceIf (\x -> x.opponent == newTeamBvsTeamA.opponent && x.location == newTeamBvsTeamA.location) newTeamBvsTeamA teamB.schedule
+
+                            newTeamA =
+                                { teamA | schedule = newTeamASchedule }
+
+                            newTeamB =
+                                { teamB | schedule = newTeamBSchedule }
+
+                            newSchedule =
+                                Schedule.updateWins <|
+                                    Dict.insert (abbrToStr newTeamB.abbr) newTeamB <|
+                                        Dict.insert (abbrToStr newTeamA.abbr) newTeamA model.schedule
                         in
-                            case ( teamAvsTeamB_, teamBvsTeamA_ ) of
-                                ( Just teamAvsTeamB, Just teamBvsTeamA ) ->
-                                    let
-                                        teamAResult =
-                                            getNextResult teamAvsTeamB.result
-
-                                        teamBResult =
-                                            toggleResult teamAResult
-
-                                        newTeamAvsTeamB =
-                                            { teamAvsTeamB | result = teamAResult }
-
-                                        newTeamBvsTeamA =
-                                            { teamBvsTeamA | result = teamBResult }
-
-                                        newTeamASchedule =
-                                            LE.replaceIf (\x -> x.opponent == newTeamAvsTeamB.opponent) newTeamAvsTeamB teamA.schedule
-
-                                        newTeamBSchedule =
-                                            LE.replaceIf (\x -> x.opponent == newTeamBvsTeamA.opponent) newTeamBvsTeamA teamB.schedule
-
-                                        newTeamA =
-                                            { teamA | schedule = newTeamASchedule }
-
-                                        newTeamB =
-                                            { teamB | schedule = newTeamBSchedule }
-
-                                        newSchedule =
-                                            Schedule.updateWins <|
-                                                Dict.insert (abbrToStr newTeamB.abbr) newTeamB <|
-                                                    Dict.insert (abbrToStr newTeamA.abbr) newTeamA model.schedule
-                                    in
-                                        ( { model | schedule = newSchedule }, Cmd.none )
-
-                                ( _, _ ) ->
-                                    ( model, Cmd.none )
+                            ( { model | schedule = newSchedule }, Cmd.none )
 
                     ( _, _ ) ->
                         ( model, Cmd.none )
 
+        ( _, _ ) ->
+            ( model, Cmd.none )
 
 getNextResult : NFL.Result -> NFL.Result
 getNextResult result =
@@ -106,6 +111,9 @@ getNextResult result =
         Loss ->
             Tie
 
+noDuplicatesSchedule : List Game -> List Game
+noDuplicatesSchedule schedule =
+    LE.uniqueBy (\x -> NFL.abbrToStr x.opponent ) schedule
 
 toggleResult : NFL.Result -> NFL.Result
 toggleResult result =
